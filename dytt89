@@ -1,0 +1,98 @@
+import requests
+import re
+import pymysql
+# 导入线程池
+from concurrent.futures import ThreadPoolExecutor
+
+headers={
+        'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'
+    }
+domian = 'http://www.dytt89.com'
+
+href_list = []
+full_href_list = []
+
+
+# 定义一个函数，把采集回来的的数据name,full_url,tupian,download存入mysql数据库中
+def save_mysql(name, full_url, tupian, download, href):
+    # 创建连接
+    conn = pymysql.connect(host='localhost', port=3306, user='root', passwd='root', db='test', charset='utf8')
+    # 创建游标
+    cursor = conn.cursor()
+    # 执行sql语句
+    sql = "insert into dytt89(name,full_url,tupian,download, href) values('%s','%s','%s','%s','%s')" % (name,full_url,tupian,download,href)
+    cursor.execute(sql)
+    # 提交
+    conn.commit()
+    # 关闭游标
+    cursor.close()
+    # 关闭连接
+    conn.close()
+
+
+def read_mysql():
+    # 创建连接
+    conn = pymysql.connect(host='localhost', port=3306, user='root', passwd='root', db='test', charset='utf8')
+    # 创建游标
+    cursor = conn.cursor()
+    # 执行sql语句
+    sql = "select href from dytt89"
+    cursor.execute(sql)
+    # 获取查询结果
+    result = cursor.fetchall()
+    # 关闭游标
+    cursor.close()
+    # 关闭连接
+    conn.close()
+    return result
+
+
+def get_url(url2):
+    obj1 = re.compile(r'<td height="26">.*?<a href="(?P<href>.*?)" class="ulink" title="(?P<name>.*?)"', re.S)
+    resp = requests.get(url, headers=headers)
+    resp.encoding = 'gb2312'
+    result1 = obj1.finditer(resp.text)
+    for it in result1:
+        href = it.group('href')
+        href_list.append(href)
+        full_href_list.append(domian + href)
+        # print(href)
+
+
+def get_full_url(full_url):
+    obj2 = re.compile(r'<meta name=keywords content="(?P<name>.*?)下载">.*?<!--Content Start-->.*?'
+                      r'src="(?P<tupian>.*?)".+?bgcolor="#fdfddf"><a href="(?P<download>.*?)"', re.S)
+    resp2 = requests.get(full_url, headers=headers)
+    resp2.encoding = 'GBK'
+    result2 = obj2.search(resp2.text)
+    name = result2.group('name')
+    tupian = result2.group('tupian')
+    download = result2.group('download')
+    href = full_url[len(domian)-1:]
+    save_mysql(name, full_url, tupian, download, href)
+    print(name)
+
+
+if __name__ == "__main__":
+    # 建立线程池
+    with ThreadPoolExecutor(10) as t:
+        for i in range(61, 71):
+            a = "_"
+            if i == 1:
+                i = ""
+                a = ""
+            url = f"http://www.dytt89.com/html/gndy/dyzz/index{a}{i}.html"
+            t.submit(get_url, url)
+
+tuple_href_list = read_mysql()
+with ThreadPoolExecutor(30) as t:
+    for it in full_href_list:
+        href2 = it[len(domian)-1:]
+        list1 = []
+        list1.append(href2)
+        tuple_href = tuple(list1)
+        if tuple_href in tuple_href_list:
+            continue
+        else:
+            url2 = it
+            t.submit(get_full_url, url2)
