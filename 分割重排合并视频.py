@@ -29,6 +29,7 @@ def cut_video(video_path):  # 切割视频
     videos = load_video(video_path)
     for video in videos:
         ffmpeg_command = f'ffmpeg -i {video} -f segment -segment_time 00:00:02 -c copy output_%02d.mp4'
+        # ffmpeg_command = f'ffmpeg -i {video} -f segment -segment_time 2 -reset_timestamps 1 -break_non_keyframes 1 {video_path}\\output_%02d.mp4'  # 这个出来的时间非常准确
         os.system(ffmpeg_command)
 
 
