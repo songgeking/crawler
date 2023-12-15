@@ -19,7 +19,8 @@ def load_video(mp4_path):  # 读取当前文件夹下的mp4文件+
     for file in video_list:
         if 'output' in file:  # 打开list.txt 文件，把file写入txt里
             path, filename = os.path.split(file)
-            with open('list.txt', 'a') as f:
+            txt_path = os.path.join(path, 'list.txt')
+            with open(txt_path, 'a') as f:
                 f.write('file' + ' ' + filename + '\n')
                 f.close()
     return video_list
@@ -28,8 +29,8 @@ def load_video(mp4_path):  # 读取当前文件夹下的mp4文件+
 def cut_video(video_path):  # 切割视频
     videos = load_video(video_path)
     for video in videos:
-        ffmpeg_command = f'ffmpeg -i {video} -f segment -segment_time 00:00:02 -c copy output_%02d.mp4'
-        # ffmpeg_command = f'ffmpeg -i {video} -f segment -segment_time 2 -reset_timestamps 1 -break_non_keyframes 1 {video_path}\\output_%02d.mp4'  # 这个出来的时间非常准确
+        output_path = os.path.join(video_path, 'output_%02d.mp4')
+        ffmpeg_command = f'ffmpeg -i {video} -f segment -segment_time 00:00:02 -c copy {output_path}'
         os.system(ffmpeg_command)
 
 
@@ -41,9 +42,25 @@ def merge_video(video_path):  # 合并视频
         if 'output' in video:
             new_videos.append(video)
 
-    txt = video_path + '\list.txt'    
-    ffmpeg_command = f'ffmpeg -f concat -i {txt} -c copy concat.mp4'
+    txt_path = video_path + '\\list.txt'
+    ffmpeg_command = f'ffmpeg -f concat -i {txt_path} -c copy {video_path}\\concat.mp4'
+    ff_command = ffmpeg_command
+    print(ff_command)
     os.system(ffmpeg_command)
 
 
-merge_video('D:\\videos')
+# 视频去抖
+def video_shake(video_path):
+    videos = load_video(video_path)
+    for video in videos:
+        output_path = os.path.join(video_path, 'fangdou.mp4')
+        ff_cmd = f'ffmpeg -i {video} -vf vidstabdetect=stepsize=32:shakiness=10:accuracy=10:result=transform_vectors.trf -f null -'
+        ff_cmd2 = f'ffmpeg -i {video} -vf vidstabtransform=input=transform_vectors.trf:zoom=0:smoothing=10 {output_path}'
+        os.system(ff_cmd)
+        print('------------------------------')
+        os.system(ff_cmd2)
+
+
+# cut_video('D:\\shipin')
+# merge_video('D:\\shipin')
+# video_shake('C:\\Users\\Entel\\Videos')  # 视频去抖
